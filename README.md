@@ -1,0 +1,188 @@
+# BlogPersonnel_back
+
+API backend Flask pour un blog personnel avec:
+- Auth JWT
+- Gestion utilisateurs/amis/blocage
+- Articles, commentaires, likes
+- Chat
+- Notifications
+
+## 1. Prérequis
+
+- Python 3.11+ (3.13 OK)
+- MySQL 8+
+- Git (optionnel)
+
+## 2. Installation
+
+### Cloner et entrer dans le projet
+```powershell
+git clone <url-du-repo>
+cd BlogPersonnel_back
+```
+
+### Créer un environnement virtuel
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+### Installer les dépendances
+```powershell
+pip install -r requirements.txt
+```
+
+## 3. Variables d'environnement
+
+Créer/compléter le fichier `.env` à la racine:
+
+```env
+# Base de données (MySQL)
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=
+MYSQL_DB=blogpersonnel
+
+# Sécurité
+SECRET_KEY=change-me-secret-key
+JWT_SECRET_KEY=change-me-jwt-key
+
+# Optionnel: si défini, prioritaire sur MYSQL_*
+# DATABASE_URL=mysql+pymysql://root:password@127.0.0.1:3306/blogpersonnel?charset=utf8mb4
+```
+
+## 4. Migrations (Flask-Migrate)
+
+> Important: utilise l'interpréteur du venv.
+
+### Initialiser Alembic (une seule fois)
+```powershell
+.\venv\Scripts\python.exe -m flask --app run:app db init
+```
+
+### Générer une migration après changement de modèles
+```powershell
+.\venv\Scripts\python.exe -m flask --app run:app db migrate -m "message migration"
+```
+
+### Appliquer les migrations
+```powershell
+.\venv\Scripts\python.exe -m flask --app run:app db upgrade
+```
+
+### Voir l'état courant
+```powershell
+.\venv\Scripts\python.exe -m flask --app run:app db current
+```
+
+## 5. Lancer le serveur
+
+### Mode simple
+```powershell
+.\venv\Scripts\python.exe run.py
+```
+
+Le serveur démarre sur `http://127.0.0.1:5000`.
+
+## 6. Auth JWT (usage)
+
+- Login/Register retourne `access_token`
+- Pour les routes protégées, envoyer le header:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## 7. Endpoints principaux
+
+### Auth
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
+
+### Users / Friends
+- `GET /search/users`
+- `POST /friends/request`
+- `POST /friends/accept`
+- `POST /friends/reject`
+- `POST /friends/remove`
+- `POST /friends/block`
+- `GET /get/friends`
+- `GET /get/friends/requests`
+
+### Articles
+- `POST /create/article`
+- `GET /articles/me`
+- `PUT /articles/<id>`
+- `DELETE /articles/<id>`
+- `GET /articles/feed`
+
+### Comments
+- `POST /comments`
+- `GET /articles/<id>/comments`
+- `PUT /comments/<id>`
+- `DELETE /comments/<id>`
+
+### Likes
+- `POST /articles/<id>/like`
+- `DELETE /articles/<id>/like`
+- `GET /articles/<id>/likes`
+
+### Chat
+- `POST /chat/messages`
+- `GET /chat/conversation/<other_user_id>`
+- `GET /chat/my`
+
+### Notifications
+- `GET /notifications`
+- `GET /notifications/unread-count`
+- `PUT /notifications/<id>/read`
+- `PUT /notifications/read-all`
+
+## 8. Pagination
+
+Les endpoints de liste supportent `page` et `per_page` (quand applicable):
+
+```http
+GET /articles/feed?page=1&per_page=10
+```
+
+Réponse type:
+```json
+{
+  "items": [...],
+  "pagination": {
+    "page": 1,
+    "per_page": 10,
+    "total": 42,
+    "pages": 5
+  }
+}
+```
+
+## 9. Dépannage rapide
+
+### `ModuleNotFoundError`
+Tu utilises probablement le mauvais Python. Lance avec:
+```powershell
+.\venv\Scripts\python.exe run.py
+```
+
+### `No such command 'db'`
+Utilise bien:
+```powershell
+.\venv\Scripts\python.exe -m flask --app run:app db <commande>
+```
+
+### Base non connectée
+Vérifie `.env` et que MySQL tourne sur le port configuré.
+
+## 10. Structure simplifiée
+
+- `app/models`: modèles SQLAlchemy
+- `app/services`: logique métier
+- `app/routes`: endpoints Flask
+- `app/schemas`: schémas Marshmallow
+- `migrations`: scripts Alembic
+- `run.py`: point d'entrée serveur
