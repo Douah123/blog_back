@@ -107,8 +107,10 @@ def get_my_chats(current_user_id, page=1, per_page=10):
         chats[other_user_id] = {
             "user_id": other_user_id,
             "username": other_user.username if other_user else None,
+            "fullname": other_user.fullname if other_user else None,
+            "avatar_url": other_user.avatar_url if other_user else None,
             "last_message": message.content,
-            "last_message_at": message.created_at,
+            "last_message_at": message.created_at.isoformat() if message.created_at else None,
         }
 
     return paginate_list(list(chats.values()), page, per_page), 200

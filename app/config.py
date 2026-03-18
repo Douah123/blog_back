@@ -30,9 +30,20 @@ def resolve_database_uri():
 
 
 class Config:
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
     SQLALCHEMY_DATABASE_URI = resolve_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret-change-me")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    AVATAR_UPLOAD_FOLDER = os.path.join(BASE_DIR, "instance", "uploads", "avatars")
+    ALLOWED_AVATAR_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+    ALLOWED_AVATAR_MIMETYPES = {
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+    }
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+    MAX_AVATAR_FILE_SIZE = 5 * 1024 * 1024

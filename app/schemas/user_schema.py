@@ -6,6 +6,7 @@ class UserSchema(Schema):
     username = fields.Str(required=True)
     fullname = fields.Str(required=True)
     email = fields.Email(required=True)
+    avatar_url = fields.Str(dump_only=True)
 
 
 user_schema = UserSchema()

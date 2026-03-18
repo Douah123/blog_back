@@ -21,5 +21,7 @@ class Like(db.Model):
             "id": self.id,
             "user_id": self.user_id,
             "article_id": self.article_id,
-            "created_at": self.created_at,
+            "username": self.user.username if self.user else None,
+            "fullname": self.user.fullname if self.user else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

@@ -1,5 +1,8 @@
-﻿from flask import Flask
+import os
+
+from flask import Flask
 from flask_cors import CORS
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from app import models  # noqa: F401
 from app.config import Config
@@ -17,6 +20,7 @@ from app.routes.user_routes import user_bp
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    os.makedirs(app.config["AVATAR_UPLOAD_FOLDER"], exist_ok=True)
 
     init_extensions(app)
     CORS(app)
@@ -34,5 +38,8 @@ def create_app():
     def home():
         return "Blog API running"
 
-    return app
+    @app.errorhandler(RequestEntityTooLarge)
+    def file_too_large(error):
+        return {"error": "Fichier trop volumineux"}, 413
 
+    return app

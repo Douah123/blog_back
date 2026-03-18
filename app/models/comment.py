@@ -18,4 +18,7 @@ class Comment(db.Model):
             "content": self.content,
             "article_id": self.article_id,
             "user_id": self.user_id,
+            "author_username": self.author.username if self.author else None,
+            "author_fullname": self.author.fullname if self.author else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

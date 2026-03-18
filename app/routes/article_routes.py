@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.helpers import parse_pagination
 from app.services.article_service import (
     create_article,
+    get_article_by_id,
     get_my_articles,
     update_article,
     delete_article,
@@ -58,6 +59,15 @@ def article_update(article_id):
         is_public=is_public,
         allow_comments=allow_comments,
     )
+
+    return jsonify(response), status
+
+
+@article_bp.route("/articles/<int:article_id>", methods=["GET"])
+@jwt_required()
+def article_detail(article_id):
+    current_user_id = get_jwt_identity()
+    response, status = get_article_by_id(article_id, current_user_id)
 
     return jsonify(response), status
 

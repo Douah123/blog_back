@@ -18,6 +18,57 @@ def _parse_bool_value(value, field_name):
     return None, {"error": f"{field_name} doit etre un booleen"}
 
 
+def _get_blocked_ids(current_user_id):
+    blocked_friendships = Friendship.query.filter(
+        (
+            (Friendship.requester_id == current_user_id)
+            | (Friendship.addressee_id == current_user_id)
+        )
+        & (Friendship.status == "blocked")
+    ).all()
+
+    blocked_ids = []
+    for friendship in blocked_friendships:
+        if friendship.requester_id == current_user_id:
+            blocked_ids.append(friendship.addressee_id)
+        else:
+            blocked_ids.append(friendship.requester_id)
+
+    return blocked_ids
+
+
+def _get_friend_ids(current_user_id):
+    friendships = Friendship.query.filter(
+        (
+            (Friendship.requester_id == current_user_id)
+            | (Friendship.addressee_id == current_user_id)
+        )
+        & (Friendship.status == "accepted")
+    ).all()
+
+    blocked_ids = _get_blocked_ids(current_user_id)
+    friend_ids = []
+    for friendship in friendships:
+        if friendship.requester_id == current_user_id:
+            friend_id = friendship.addressee_id
+        else:
+            friend_id = friendship.requester_id
+
+        if friend_id not in blocked_ids:
+            friend_ids.append(friend_id)
+
+    return friend_ids
+
+
+def _serialize_article(article, current_user_id=None):
+    result = article.to_dict()
+
+    if current_user_id is not None:
+        result["liked_by_current_user"] = any(like.user_id == current_user_id for like in article.likes)
+
+    return result
+
+
 def create_article(title, content, is_public, allow_comments, author_id):
     title = (title or "").strip()
     content = (content or "").strip()
@@ -55,7 +106,7 @@ def create_article(title, content, is_public, allow_comments, author_id):
     db.session.commit()
 
     return {
-        "message": "article cree avec succes", "article": article.to_dict(),
+        "message": "article cree avec succes", "article": _serialize_article(article, author_id),
     }, 201
 
 
@@ -66,8 +117,25 @@ def get_my_articles(author_id, page=1, per_page=10):
         return {"error": "author_id invalide"}, 400
 
     articles = Article.query.filter(Article.user_id == author_id).order_by(Article.id.desc()).all()
-    results = [article.to_dict() for article in articles]
+    results = [_serialize_article(article, author_id) for article in articles]
     return paginate_list(results, page, per_page), 200
+
+
+def get_article_by_id(article_id, current_user_id):
+    try:
+        article_id = int(article_id)
+        current_user_id = int(current_user_id)
+    except (TypeError, ValueError):
+        return {"error": "IDs invalides"}, 400
+
+    article = Article.query.get(article_id)
+    if not article:
+        return {"error": "Article introuvable"}, 404
+
+    if (not article.is_public) and (article.user_id != current_user_id):
+        return {"error": "Acces refuse"}, 403
+
+    return {"article": _serialize_article(article, current_user_id)}, 200
 
 
 def update_article(article_id, author_id, title=None, content=None, is_public=None, allow_comments=None):
@@ -110,7 +178,7 @@ def update_article(article_id, author_id, title=None, content=None, is_public=No
         article.allow_comments = parsed_allow_comments
 
     db.session.commit()
-    return {"message": "article modifie avec succes", "article": article.to_dict()}, 200
+    return {"message": "article modifie avec succes", "article": _serialize_article(article, author_id)}, 200
 
 
 def delete_article(article_id, author_id):
@@ -137,45 +205,16 @@ def get_articles_feed(current_user_id, page=1, per_page=10):
     except (TypeError, ValueError):
         return {"error": "ID utilisateur invalide"}, 400
 
-    friendships = Friendship.query.filter(
-        (
-            (Friendship.requester_id == current_user_id)
-            | (Friendship.addressee_id == current_user_id)
-        )
-        & (Friendship.status == "accepted")
-    ).all()
+    friend_ids = _get_friend_ids(current_user_id)
 
-    blocked_friendships = Friendship.query.filter(
-        (
-            (Friendship.requester_id == current_user_id)
-            | (Friendship.addressee_id == current_user_id)
-        )
-        & (Friendship.status == "blocked")
-    ).all()
-
-    friend_ids = []
-    for friendship in friendships:
-        if friendship.requester_id == current_user_id:
-            friend_ids.append(friendship.addressee_id)
-        else:
-            friend_ids.append(friendship.requester_id)
-
-    blocked_ids = []
-    for friendship in blocked_friendships:
-        if friendship.requester_id == current_user_id:
-            blocked_ids.append(friendship.addressee_id)
-        else:
-            blocked_ids.append(friendship.requester_id)
-
-    friend_ids = [friend_id for friend_id in friend_ids if friend_id not in blocked_ids]
-
-    friend_articles = []
+    feed_articles = Article.query.filter(Article.user_id == current_user_id).all()
     if friend_ids:
         friend_articles = Article.query.filter(
             (Article.user_id.in_(friend_ids)) & (Article.is_public == True)  # noqa: E712
         ).all()
+        feed_articles.extend(friend_articles)
 
-    feed = sorted(friend_articles, key=lambda article: article.id, reverse=True)
+    feed = sorted(feed_articles, key=lambda article: article.id, reverse=True)
 
-    results = [article.to_dict() for article in feed]
+    results = [_serialize_article(article, current_user_id) for article in feed]
     return paginate_list(results, page, per_page), 200

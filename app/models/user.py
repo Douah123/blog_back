@@ -8,6 +8,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     fullname = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    avatar_url = db.Column(db.String(255), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     articles = db.relationship("Article", back_populates="author", cascade="all, delete-orphan")
     comments = db.relationship("Comment", back_populates="author", cascade="all, delete-orphan")
@@ -54,4 +55,5 @@ class User(db.Model):
             "username": self.username,
             "fullname": self.fullname,
             "email": self.email,
+            "avatar_url": self.avatar_url,
         }
