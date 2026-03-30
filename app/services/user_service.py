@@ -1,7 +1,9 @@
 import os
+import re
 from uuid import uuid4
 
 from flask import current_app
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 from app.models.user import User
@@ -9,6 +11,9 @@ from app.models.friendship import Friendship
 from app.extensions import db
 from app.utils.helpers import paginate_list
 from app.services.notification_service import create_notification
+
+
+PASSWORD_PATTERN = re.compile(r"^[A-Z](?=.*\d)[A-Za-z\d]{7,}$")
 
 
 def _get_avatar_extension(filename):
@@ -77,6 +82,105 @@ def upload_my_avatar(current_user_id, avatar_file):
     db.session.commit()
 
     return {"message": "avatar mis a jour avec succes", "user": user.to_dict()}, 200
+
+
+def update_my_profile(current_user_id, data):
+    try:
+        current_user_id = int(current_user_id)
+    except (TypeError, ValueError):
+        return {"error": "ID utilisateur invalide"}, 400
+
+    user = User.query.get(current_user_id)
+    if not user:
+        return {"error": "Utilisateur introuvable"}, 404
+
+    data = data or {}
+
+    username = data.get("username")
+    fullname = data.get("fullname")
+    email = data.get("email")
+    current_password = data.get("current_password")
+    new_password = data.get("new_password")
+    confirm_password = data.get("confirm_password")
+
+    has_username = "username" in data
+    has_fullname = "fullname" in data
+    has_email = "email" in data
+    has_password_update = any(
+        key in data for key in ["current_password", "new_password", "confirm_password"]
+    )
+
+    if not any([has_username, has_fullname, has_email, has_password_update]):
+        return {"error": "Aucune donnee a mettre a jour"}, 400
+
+    if has_username:
+        username = (username or "").strip()
+        if not username:
+            return {"error": "username ne peut pas etre vide"}, 400
+
+    if has_fullname:
+        fullname = (fullname or "").strip()
+        if not fullname:
+            return {"error": "fullname ne peut pas etre vide"}, 400
+
+    if has_email:
+        email = (email or "").strip().lower()
+        if not email:
+            return {"error": "email ne peut pas etre vide"}, 400
+
+    if has_password_update:
+        current_password = current_password or ""
+        new_password = new_password or ""
+        confirm_password = confirm_password or ""
+
+        if not current_password or not new_password or not confirm_password:
+            return {
+                "error": "current_password, new_password et confirm_password sont obligatoires"
+            }, 400
+        if not check_password_hash(user.password_hash, current_password):
+            return {"error": "Mot de passe actuel incorrect"}, 401
+        if new_password != confirm_password:
+            return {"error": "La confirmation du nouveau mot de passe ne correspond pas"}, 400
+        if current_password == new_password:
+            return {"error": "Le nouveau mot de passe doit etre different de l'ancien"}, 400
+        if not PASSWORD_PATTERN.match(new_password):
+            return {
+                "error": (
+                    "Mot de passe invalide: minimum 8 caracteres, commencer par une "
+                    "majuscule et contenir des lettres et des chiffres"
+                )
+            }, 400
+
+    if has_username and username != user.username:
+        existing_username = User.query.filter(
+            (User.username == username) & (User.id != user.id)
+        ).first()
+        if existing_username:
+            return {"error": "username deja utilise"}, 409
+        user.username = username
+
+    if has_fullname and fullname != user.fullname:
+        existing_fullname = User.query.filter(
+            (User.fullname == fullname) & (User.id != user.id)
+        ).first()
+        if existing_fullname:
+            return {"error": "fullname deja utilise"}, 409
+        user.fullname = fullname
+
+    if has_email and email != user.email:
+        existing_email = User.query.filter(
+            (User.email == email) & (User.id != user.id)
+        ).first()
+        if existing_email:
+            return {"error": "email deja utilise"}, 409
+        user.email = email
+
+    if has_password_update:
+        user.password_hash = generate_password_hash(new_password)
+
+    db.session.commit()
+
+    return {"message": "profil mis a jour avec succes", "user": user.to_dict()}, 200
 
 
 def search_users(username_query, current_user_id=None, page=1, per_page=10):

@@ -14,9 +14,10 @@ def create_comment():
     data = request.get_json(silent=True) or {}
     article_id = data.get("article_id")
     content = data.get("content")
+    parent_comment_id = data.get("parent_comment_id")
     user_id = get_jwt_identity()
 
-    response, status = add_comment(article_id, user_id, content)
+    response, status = add_comment(article_id, user_id, content, parent_comment_id)
     return jsonify(response), status
 
 

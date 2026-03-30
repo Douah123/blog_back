@@ -13,6 +13,7 @@ from app.services.user_service import (
     block_user,
     unblock_user,
     upload_my_avatar,
+    update_my_profile,
 )
 
 
@@ -45,6 +46,17 @@ def upload_avatar():
     avatar_file = request.files.get("avatar")
 
     response, status = upload_my_avatar(current_user_id, avatar_file)
+
+    return jsonify(response), status
+
+
+@user_bp.route("/users/me", methods=["PUT", "PATCH"])
+@jwt_required()
+def update_me():
+    current_user_id = get_jwt_identity()
+    data = request.get_json(silent=True) or {}
+
+    response, status = update_my_profile(current_user_id, data)
 
     return jsonify(response), status
 

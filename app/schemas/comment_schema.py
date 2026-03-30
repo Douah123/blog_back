@@ -6,6 +6,7 @@ class CommentSchema(Schema):
     content = fields.Str(required=True)
     article_id = fields.Int(required=True)
     user_id = fields.Int(required=True)
+    parent_comment_id = fields.Int(allow_none=True)
     created_at = fields.DateTime(dump_only=True)
 
 
